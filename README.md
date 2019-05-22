@@ -2,4 +2,4 @@
 go project resource
 ## web-calendar:
 instance:http://193.112.58.224:1233/calendar/ <br>
-use tool:html,javascript,vue.js,go,mysql
+use tool:html,javascript,vue.js,go,mysql,mysql-proxy
