@@ -1,0 +1,108 @@
+<!DOCTYPE html>
+<html>
+    <head>
+        <title>GoLang日历系统</title>
+        <meta charset="UTF-8">
+        <meta name="viewport" content="width=device-width, initial-scale=1.0">
+        <!--vue.js-->
+        <script src="https://unpkg.com/vue/dist/vue.js"></script>
+        <script src="https://unpkg.com/vue-router/dist/vue-router.js"></script>
+        <script src = "https://cdn.jsdelivr.net/npm/vue-resource@1.5.1"></script>
+        <!--bootstrap-->
+        <!--[if lt IE 9]>
+        <script src="http://html5shiv.googlecode.com/svn/trunk/html5.js"></script>
+        <![endif]-->
+        <link rel="stylesheet" href="https://cdn.bootcss.com/bootstrap/4.0.0/css/bootstrap.min.css" integrity="sha384-Gn5384xqQ1aoWXA+058RXPxPg6fy4IWvTNh0E263XmFcJlSAwiGgFAW/dAiS6JXm" crossorigin="anonymous">
+        <script src="https://cdn.bootcss.com/jquery/3.2.1/jquery.slim.min.js" integrity="sha384-KJ3o2DKtIkvYIK3UENzmM7KCkRr/rE9/Qpg6aAZGJwFDMVNA/GpGFF93hXpG5KkN" crossorigin="anonymous"></script>
+        <script src="https://cdn.bootcss.com/popper.js/1.12.9/umd/popper.min.js" integrity="sha384-ApNbgh9B+Y1QKtv3Rn7W3mgPxhU9K/ScQsAP7hUibX39j7fakFPskvXusvfa0b4Q" crossorigin="anonymous"></script>
+        <script src="https://cdn.bootcss.com/bootstrap/4.0.0/js/bootstrap.min.js" integrity="sha384-JZR6Spejh4U02d8jOt6vLEHfe/JQGiRRSQQxSfFWpi1MquVdAyjUar5+76PVCmYl" crossorigin="anonymous"></script>
+    </head>
+    <body>
+        <div id="pc" style="background-color:white;margin-top: 0px;">
+            <header style="background-color: #444;color:white;text-align: center;padding: 16px;">
+                <h1><strong>GoLang日历系统</strong></h1>
+            </header>
+            <div class="container">
+                <nav class="select-nav nav" style="padding-top:12px;">
+                    <div class="input-group mb-3 col-sm-3">
+                        <input type="number" class="form-control" v-model.number="selectYear" aria-describedby="basic-addon2">
+                        <div class="input-group-append">
+                            <span class="input-group-text" id="basic-addon2">年</span>
+                        </div>
+                    </div>
+                    <div class="input-group mb-3 col-sm-3">
+                        <input type="number" class="form-control" v-model.number="selectMonth" aria-describedby="basic-addon2">
+                        <div class="input-group-append">
+                            <span class="input-group-text" id="basic-addon2">月</span>
+                        </div>
+                    </div>
+                </nav>
+                <nav class="week-nav" style="padding-top:12px;">
+                    <nav class="nav nav-tabs nav-justified">
+                        <a v-for="week in weekText"
+                           class="nav-item nav-link" 
+                           :class="{disabled:true,active:week.isActive}"
+                           style="overflow: hidden;text-overflow:ellipsis;">
+                            <h6><strong>{{week.name}}</strong></h6>
+                        </a>
+                    </nav>
+                </nav>
+                <!--calendar-area-->
+                <nav v-for="calendarArea in showCalendar"
+                     class="nav nav-pills nav-justified"  
+                     style="padding-top:6px;">
+                    <a v-for="calendar in calendarArea"
+                       class="nav-item nav-link"
+                       :class="{disabled:false,active:calendar.isActive}"
+                       @click="setSelectDate(calendar.date)"
+                       style="overflow: hidden;text-overflow:ellipsis;">
+                        <strong>
+                            <h6>{{calendar.date}}<span v-if="calendar.haveNotice" class="badge badge-pill badge-danger">&nbsp;</span></h6>
+                            <h6>{{calendar.comment}}&nbsp;</h6>
+                        </strong>
+                    </a>
+                </nav>
+                <nav class="note-nav" id="tag-last" style="padding-top:12px;text-align: center;">
+                    <h3 style="float:left;"><strong>便签</strong></h3> 
+                    <nav class="nav justify-content-end" style="padding-top:12px;">
+                        <div class="col-sm-1" v-if="!isEdit"><a href="#tag-last"><img src="./assets/icon/edit.svg" alt="编辑" style="width: 32px;height: 32px;" @click="reverseIsEdit"></a></div>
+                        <div class="col-sm-1" v-if="isEdit"> <img src="./assets/icon/edit-active.png" alt="编辑" style="width: 32px;height: 32px;" @click="reverseIsEdit"></div>
+                    </nav>
+                    <hr style="height:1px;border:none;border-top:1px solid #555555;padding-bottom: 12px;" />
+                    <div v-show="isEdit" class="nav" style="padding-bottom: 16px;">
+                        <input type="text" class="form-control col-sm-2" placeholder="All" v-model="addTag">
+                        <input type="text" class="form-control col-sm-9" placeholder="请输入记录内容" v-model="addContent">
+                        <div class="col-sm-1"> <img src="./assets/icon/add.svg" alt="新增" style="width: 32px;height: 32px;" @click="AddNewTag"></div>
+                    </div>
+
+                    <div class="nav" v-for="tagInfo in showTagInfos">
+                        <div class="alert alert-secondary col-sm-2" role="alert">
+                            {{tagInfo.tag}}
+                        </div>
+                        <div class="alert alert-warning col-sm-9" role="alert" style="text-align:left;">
+                            {{tagInfo.content}}
+                        </div>
+                        <div v-show="isEdit" class="col-sm-1"> <img src="./assets/icon/delete.svg" alt="删除" style="width: 32px;height: 32px;" @click="DiscardOldTag(tagInfo._id)"></div>
+                    </div>
+
+                </nav>
+            </div>
+            <!-- Modal -->
+            <div class="modal fade" id="exampleModalCenter" tabindex="-1" role="dialog" aria-labelledby="exampleModalCenterTitle" aria-hidden="true">
+                <div class="modal-dialog modal-dialog-centered" role="document">
+                    <div class="modal-content">
+                        <div class="modal-header">
+                            <button type="button" class="close" data-dismiss="modal" aria-label="Close">
+                                <span aria-hidden="true">&times;</span>
+                            </button>
+                        </div>
+                        <div class="modal-body text-center" style="padding: 32px;">
+                            {{centerModalContent}}
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <script src="./script/calendar-vue.js"></script>
+    </body>
+</html>
