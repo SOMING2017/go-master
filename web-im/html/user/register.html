@@ -1,0 +1,135 @@
+<!DOCTYPE html>
+<!--
+To change this license header, choose License Headers in Project Properties.
+To change this template file, choose Tools | Templates
+and open the template in the editor.
+-->
+<html style="height: 100%;">
+    <head>
+        <title>注册页面</title>
+        <meta charset="UTF-8">
+        <meta name="viewport" content="width=device-width, initial-scale=1.0">
+        <!--vue.js-->
+        <script src="https://unpkg.com/vue/dist/vue.js"></script>
+        <script src="https://unpkg.com/vue-router/dist/vue-router.js"></script>
+        <script src = "https://cdn.jsdelivr.net/npm/vue-resource@1.5.1"></script>
+        <!--bootstrap-->
+        <!--[if lt IE 9]>
+        <script src="http://html5shiv.googlecode.com/svn/trunk/html5.js"></script>
+        <![endif]-->
+        <link href="https://cdn.bootcss.com/bootstrap/4.0.0/css/bootstrap.min.css" rel="stylesheet" >
+        <script src="https://cdn.bootcss.com/jquery/3.2.1/jquery.slim.min.js" integrity="sha384-KJ3o2DKtIkvYIK3UENzmM7KCkRr/rE9/Qpg6aAZGJwFDMVNA/GpGFF93hXpG5KkN" crossorigin="anonymous"></script>
+        <script src="https://cdn.bootcss.com/popper.js/1.12.9/umd/popper.min.js" integrity="sha384-ApNbgh9B+Y1QKtv3Rn7W3mgPxhU9K/ScQsAP7hUibX39j7fakFPskvXusvfa0b4Q" crossorigin="anonymous"></script>
+        <script src="https://cdn.bootcss.com/bootstrap/4.0.0/js/bootstrap.min.js" integrity="sha384-JZR6Spejh4U02d8jOt6vLEHfe/JQGiRRSQQxSfFWpi1MquVdAyjUar5+76PVCmYl" crossorigin="anonymous"></script>
+    </head>
+    <body style="height: 100%;">
+        <div id="pc" style="background-color:white;margin-top: 0px;height: 100%;">
+            <div class="container d-flex align-items-center" style="height: 100%;">
+                <div class="col-sm-12">
+                    <nav class="title-nav nav flex-column align-content-center">
+                        <h3>密码注册</h3>
+                    </nav>
+                    <nav class="input-nav nav flex-column align-content-center" style="padding-top:8px;">
+                        <div class="input-tip nav"><div style="color: red">*</div><div>&nbsp;6-9位数字字母，并且第一位必须为字母</div></div>
+                        <div class="input-group mb-3 col-sm-3">
+                            <div class="input-group-append">
+                                <span class="input-group-text" id="basic-addon1">账户</span>
+                            </div>
+                            <input type="text" class="form-control" placeholder="输入账号..." v-model="user" aria-describedby="basic-addon1">
+                        </div>
+                        <div class="input-tip nav"><div style="color: red">*</div><div>&nbsp;8-16位数字字母</div></div>
+                        <div class="input-group mb-3 col-sm-3">
+                            <div class="input-group-append">
+                                <span class="input-group-text" id="basic-addon1">密码</span>
+                            </div>
+                            <input type="password" class="form-control" placeholder="输入密码..." v-model="password" aria-describedby="basic-addon1">
+                        </div>
+                        <div class="input-tip nav"><div style="color: red">*</div><div>&nbsp;2-6位汉字</div></div>
+                        <div class="input-group mb-3 col-sm-3">
+                            <div class="input-group-append">
+                                <span class="input-group-text" id="basic-addon1">用户名</span>
+                            </div>
+                            <input type="text" class="form-control" placeholder="输入用户名..." v-model="name" aria-describedby="basic-addon1">
+                        </div>
+                    </nav>
+                    <nav class="button-nav nav flex-column align-content-center" style="padding-top:8px;">
+                        <button type="button" class="btn btn-warning  col-sm-3" @click="Register">注册</button>
+                        <div class="d-flex justify-content-end" style="padding-top:4px;"><a type="button" class="btn btn-light col-sm-4" href="login.html">登录</a></div>
+                    </nav>
+                </div>
+            </div>
+            <!-- Modal -->
+            <div class="modal fade" id="exampleModalCenter" tabindex="-1" role="dialog" aria-labelledby="exampleModalCenterTitle" aria-hidden="true">
+                <div class="modal-dialog modal-dialog-centered" role="document">
+                    <div class="modal-content">
+                        <div class="modal-header">
+                            <button type="button" class="close" data-dismiss="modal" aria-label="Close">
+                                <span aria-hidden="true">&times;</span>
+                            </button>
+                        </div>
+                        <div class="modal-body text-center" style="padding: 32px;">
+                            {{centerModalContent}}
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <script src="./script/github.com/travist/jsencrypt/jsencrypt.min.js"></script>
+        <script>
+var getPublicKeyErrorMsg = "密钥获取失败";
+var vue = new Vue({
+    el: '#pc',
+    data: {
+        user: "",
+        password: "",
+        name: "",
+        centerModalContentData: "",
+    },
+    methods: {
+        Register() {
+            this.$http.get(
+                    '/api/user/password/controller',
+                    {params: {action: "GetPublickey"}}
+            ).then(function (res) {
+                var encrypt = new JSEncrypt();
+                encrypt.setPublicKey(res.body);
+                var enUser = encrypt.encrypt(vue.user);
+                var enPassword = encrypt.encrypt(vue.password);
+                var enName = encrypt.encrypt(vue.name);
+                this.$http.post(
+                        '/api/user/controller',
+                        {action: "Register", enUser: enUser, enPassword: enPassword, enName: enName},
+                        {emulateJSON: true}
+                ).then(function (res) {
+                    vue.centerModalContent = res.body;
+                    window.setTimeout(function () {
+                        window.location.href = 'login.html';
+                    }, 2000);
+                }, function (res) {
+                    vue.centerModalContent = res.body;
+                });
+            }, function () {
+                vue.centerModalContent = getPublicKeyErrorMsg
+            });
+        },
+    },
+    computed: {
+        centerModalContent: {
+            get() {
+                return this.centerModalContentData;
+            },
+            set(nval) {
+                if (nval === '')
+                    nval = "无效操作";
+                this.centerModalContentData = nval;
+                $('#exampleModalCenter').modal('show');
+                window.setTimeout(function () {
+                    $('#exampleModalCenter').modal('hide');
+                }, 2000);
+            }
+        }
+    },
+});
+        </script>
+    </body>
+</html>

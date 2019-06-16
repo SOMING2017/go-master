@@ -1,0 +1,334 @@
+<!DOCTYPE html>
+<html style="height: 100%">
+    <head>
+        <title>GoLang即时聊天系统</title>
+        <meta charset="UTF-8">
+        <meta name="viewport" content="width=device-width, initial-scale=1.0">
+        <!--vue.js-->
+        <script src="https://unpkg.com/vue/dist/vue.js"></script>
+        <script src="https://unpkg.com/vue-router/dist/vue-router.js"></script>
+        <script src = "https://cdn.jsdelivr.net/npm/vue-resource@1.5.1"></script>
+        <!--bootstrap-->
+        <!--[if lt IE 9]>
+        <script src="http://html5shiv.googlecode.com/svn/trunk/html5.js"></script>
+        <![endif]-->
+        <link href="https://cdn.bootcss.com/bootstrap/4.0.0/css/bootstrap.min.css" rel="stylesheet" >
+        <script src="https://cdn.bootcss.com/jquery/3.2.1/jquery.slim.min.js" integrity="sha384-KJ3o2DKtIkvYIK3UENzmM7KCkRr/rE9/Qpg6aAZGJwFDMVNA/GpGFF93hXpG5KkN" crossorigin="anonymous"></script>
+        <script src="https://cdn.bootcss.com/popper.js/1.12.9/umd/popper.min.js" integrity="sha384-ApNbgh9B+Y1QKtv3Rn7W3mgPxhU9K/ScQsAP7hUibX39j7fakFPskvXusvfa0b4Q" crossorigin="anonymous"></script>
+        <script src="https://cdn.bootcss.com/bootstrap/4.0.0/js/bootstrap.min.js" integrity="sha384-JZR6Spejh4U02d8jOt6vLEHfe/JQGiRRSQQxSfFWpi1MquVdAyjUar5+76PVCmYl" crossorigin="anonymous"></script>
+        <!--other css-->
+        <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/materialize/0.97.8/css/materialize.min.css"> 
+        <link rel="stylesheet" href="https://fonts.googleapis.com/icon?family=Material+Icons">
+        <link rel="stylesheet" href="https://cdn.jsdelivr.net/emojione/2.2.6/assets/css/emojione.min.css"/>
+        <link rel="stylesheet" href="css/samplecss.css">
+    </head>
+    <body style="height: 100%">
+        <div id="pc" style="background-color:white;margin-top:0px;height: 100%">
+            <header> 
+                <nav> 
+                    <div class="nav-wrapper"> <a class="brand-logo center">GoLang即时聊天系统</a> </div> 
+                </nav>
+            </header>
+            <main class="nav" style="height: 70%"> 
+                <div class="panel-edit center" style="background: gray;padding: 8px">
+                    <div v-if="openChannel" style="padding: 8px"><img src="./assets/icon/edit-active.png" alt="切换群组" style="width: 32px;height: 32px;" @click="reverseOpenChannel"></div>
+                    <div v-if="!openChannel" style="padding: 8px"><img src="./assets/icon/edit.svg" alt="切换群组" style="width: 32px;height: 32px;" @click="reverseOpenChannel"></div>
+                </div>
+                <div class="panel-channel col-sm-2 center" v-if="openChannel" style="background:#9999FF;width: 10%;padding: 0px;">
+                    <div  v-for="channel in channelList" v-bind:class="{activeChannel:channel.isActive}" @click="selectChannel(channel.id)">
+                        <div style="overflow: hidden;text-overflow:ellipsis;padding: 4px">
+                            {{channel.name}}
+                            <p>{{channel.newMessage}}</p>
+                        </div>
+                        <div style='height: 1px;background: gray'></div>
+                    </div>
+                </div>
+                <div class="panel-message container" v-if="openMsgPanel" style="background: bisque;">
+                    <div class="col-sm-12"> 
+                        <div class="card horizontal"> 
+                            <div id="chat-messages" class="card-content">
+                                <div v-for="message in messageList">
+                                    <div class="chip" v-bind:class="{right:message.isMe}">
+                                        <img v-bind:src="message.Src">
+                                        {{message.name}}：
+                                        {{message.content}}
+                                    </div>
+                                    <br><br>
+                                </div>
+                                <div id="chat_bottom"></div>
+                            </div>
+                        </div> 
+                    </div>
+                    <div class="row col-sm-12"> 
+                        <div class="input-field col-sm-10"> 
+                            <input type="text" v-model="newMsg" @keyup.enter="send" placeholder="请输入消息..."> 
+                        </div> 
+                        <div class="input-field col-sm-2"> 
+                            <button class="waves-effect waves-light btn" @click="send"> <i class="material-icons right">chat</i> Send </button> 
+                        </div>
+                    </div> 
+                </div> 
+            </main>
+            <footer class="page-footer" style="margin-top:0px;height: 48px"></footer>
+            <!-- Modal -->
+            <div class="modal fade" id="exampleModalCenter" tabindex="-1" role="dialog" aria-labelledby="exampleModalCenterTitle" aria-hidden="true">
+                <div class="modal-dialog modal-dialog-centered" role="document">
+                    <div class="modal-content">
+                        <div class="modal-header">
+                            <button type="button" class="close" data-dismiss="modal" aria-label="Close">
+                                <span aria-hidden="true">&times;</span>
+                            </button>
+                        </div>
+                        <div class="modal-body text-center" style="padding: 32px;">
+                            {{centerModalContent}}
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <script src="./script/github.com/travist/jsencrypt/jsencrypt.min.js"></script>
+        <script src="./script/github.com/js-cookie/js-cookie/js.cookie.js"></script>
+        <script>
+var websocketSupportErrorMsg = "浏览器不支持websocket";
+var decrypt = new JSEncrypt();
+var vue = new Vue({
+    el: '#pc',
+    data: {
+        openChannel: true,
+        channelList: [],
+        openMsgPanel: false,
+        messageList: [],
+        messageWS: "",
+        newMsg: "",
+        centerModalContentData : "",
+    },
+    methods: {
+        reverseOpenChannel() {
+            this.openChannel = !this.openChannel;
+        },
+        selectChannel(id) {
+            for (var dataIndex = 0; dataIndex < this.channelList.length; dataIndex++) {
+                var oneChannel = this.channelList[dataIndex];
+                if (oneChannel['id'] === id) {
+                    if (oneChannel['isActive'] === false) {
+                        oneChannel['isActive'] = true;
+                        this.openMsgPanel = true;
+                        WebsocketOneMessage(id);
+                    }
+                } else {
+                    oneChannel['isActive'] = false;
+                }
+            }
+        },
+        send() {
+            this.$http.get(
+                    '/api/user/password/controller',
+                    {params: {action: "GetPublickey"}}
+            ).then(function (res) {
+                var encrypt = new JSEncrypt();
+                encrypt.setPublicKey(res.body);
+                var enContent = encrypt.encrypt(vue.newMsg);
+                var sendInfo = {};
+                sendInfo["action"] = "Send";
+                sendInfo["enContent"] = enContent;
+                vue.messageWS.send(JSON.stringify(sendInfo));
+                vue.newMsg = "";
+            }, function () {
+                vue.centerModalContent = getPublicKeyErrorMsg
+            });
+        },
+    },
+    computed: {
+        centerModalContent : {
+            get() {
+                return this.centerModalContentData;
+            },
+            set(nval) {
+                if (nval === '')
+                    nval = "无效操作";
+                this.centerModalContentData = nval;
+                $('#exampleModalCenter').modal('show');
+                window.setTimeout(function () {
+                    $('#exampleModalCenter').modal('hide');
+                }, 2000);
+            }
+        }
+    },
+});
+
+function WebsocketMyChannel() {
+    var url = 'ws://' + window.location.host + '/api/im/channel/controller?';
+    url = AddUrlValue(url, "action", "WebsocketMyChannel");
+    url = AddUrlValue(url, "token", Cookies.get('token'));
+    var conn = new WebSocket(url);
+    conn.onclose = function () {
+        TipAndGoLoginPage("通讯关闭");
+    };
+    conn.onmessage = function (evt) {
+        var jsondata = JSON.parse(evt.data);
+        if (jsondata['status'] === 200) {
+            var action = jsondata['action'];
+            var data = jsondata['data'];
+            if (typeof action === 'undefined' || data === 'undefined') {
+                return;
+            }
+            ParseMyChannelAction(action, data)
+        }
+        if (jsondata['status'] === 401) {
+            TipAndGoLoginPage(jsondata['msg']);
+        }
+    };
+    conn.onerror = function (evt) {
+        TipAndGoLoginPage("通讯错误关闭,ERR:" + evt.data);
+    };
+}
+
+function ParseMyChannelAction(action, data) {
+    console.log("deal->data is " + data);
+    if (action === "All") {
+        data = JSON.parse(data);
+        vue.$data.channelList.splice(0, vue.$data.channelList.length);
+        if (data instanceof Array) {
+            for (var dataIndex = 0; dataIndex < data.length; dataIndex++) {
+                var oneChannel = data[dataIndex];
+                if (typeof oneChannel === 'object') {
+                    oneChannel['isActive'] = false;
+                    vue.$data.channelList.push(oneChannel);
+                }
+            }
+        }
+    }
+    if (action === "Top") {
+        data = JSON.parse(data);
+        if (typeof data === 'object') {
+            var oldIsActive = false;
+            vue.$data.channelList = vue.$data.channelList.filter(function (item) {
+                var filter = (item['id'] !== data['id']);
+                if (!filter) {
+                    oldIsActive = item['isActive'];
+                }
+                return filter;
+            });
+            data['isActive'] = oldIsActive;
+            vue.$data.channelList.unshift(data);
+        }
+    }
+}
+
+function WebsocketOneMessage(channelID) {
+    if (vue.$data.messageWS != "") {
+        vue.$data.messageWS.close();
+    }
+    var url = 'ws://' + window.location.host + '/api/im/channel/message/controller?';
+    url = AddUrlValue(url, "token", Cookies.get('token'));
+    url = AddUrlValue(url, "action", "WebsocketChannelMessage");
+    url = AddUrlValue(url, "channelID", channelID);
+    url = AddUrlValue(url, "publicKey", encodeURIComponent(decrypt.getPublicKey()));
+    var conn = new WebSocket(url);
+    conn.onmessage = function (evt) {
+        console.log("evt.data is " + evt.data);
+        var jsondata = JSON.parse(evt.data);
+        if (jsondata['status'] === 200) {
+            var action = jsondata['action'];
+            var data = jsondata['data'];
+            if (typeof action === 'undefined' || data === 'undefined') {
+                return;
+            }
+            ParseOneMessageAction(action, data)
+        }
+        if (jsondata['status'] === 401) {
+            TipAndGoLoginPage(jsondata['msg']);
+        }
+        if (jsondata['status'] === 404) {
+            //todo: err deal
+        }
+    };
+    conn.onerror = function (evt) {
+        //todo: err deal
+    };
+    conn.onopen = function (evt) {
+        console.log("onopen->evt.data is " + evt.data);
+    };
+    conn.onclose = function (evt) {
+        console.log("onclose->evt.data is " + evt.data);
+    };
+    vue.$data.messageWS = conn;
+}
+
+function ParseOneMessageAction(action, data) {
+    console.log("deal->data is " + data);
+    if (action === "All") {
+        data = JSON.parse(data);
+        vue.$data.messageList.splice(0, vue.$data.messageList.length);
+        if (data instanceof Array) {
+            for (var dataIndex = 0; dataIndex < data.length; dataIndex++) {
+                var oneMessage = data[dataIndex];
+                if (typeof oneMessage === 'object') {
+                    var enContent = oneMessage["enContent"];
+                    var content = decrypt.decrypt(enContent);
+                    oneMessage["content"] = content;
+                    enContent = "";
+                    vue.$data.messageList.push(oneMessage);
+                }
+            }
+            setTimeout(function () {
+                location.hash = "#chat_bottom";
+            }, 100);
+        }
+    }
+    if (action === "Add") {
+        data = JSON.parse(data);
+        if (typeof data === 'object') {
+            var enContent = data["enContent"];
+            var content = decrypt.decrypt(enContent);
+            data["content"] = content;
+            enContent = "";
+            vue.$data.messageList.push(data);
+        }
+        setTimeout(function () {
+            location.hash = "#chat_bottom";
+        }, 100);
+    }
+}
+
+var tipAndGoLoginState = false;
+function TipAndGoLoginPage(msg) {
+    if (tipAndGoLoginState) {
+        return
+    }
+    tipAndGoLoginState = true;
+    vue.centerModalContent = msg;
+    window.setTimeout(function () {
+        window.location.href = 'user/login.html';
+    }, 2000);
+}
+
+function AddUrlValue(url, key, value) {
+    return url + "&" + key + "=" + value;
+}
+
+function WebsocketStart() {
+    if (!("WebSocket" in window)) {
+        vue.centerModalContent = websocketSupportErrorMsg;
+        window.setTimeout(function () {
+            window.location.href = 'user/login.html';
+        }, 2000);
+        return
+    }
+    WebsocketMyChannel();
+}
+
+WebsocketStart();
+        </script>
+    </body>
+</html>
+<!--参考资料：-->
+<!----------------------- 
+作者：一蓑烟雨1989 
+来源：CSDN 
+原文：https://blog.csdn.net/wangshubo1989/article/details/78250790 
+版权声明：本文为博主原创文章，转载请附上博文链接！-->
+<!------------------------- 
+作者：window_net
+来源：cnblogs
+原文：https://www.cnblogs.com/zxtceq/p/6963964.html-->
